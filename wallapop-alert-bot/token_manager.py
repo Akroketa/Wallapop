@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from playwright.sync_api import BrowserContext, Playwright, sync_playwright
+from playwright.sync_api import BrowserContext, Playwright, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 from telegram_client import TelegramClient
 
@@ -52,7 +52,11 @@ class TokenManager:
             try:
                 page = context.new_page()
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_load_state("networkidle", timeout=60000)
+                page.wait_for_timeout(8_000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=60000)
+                except PlaywrightTimeoutError:
+                    LOGGER.info("Wallapop no llegó a networkidle, continuando con extracción de token")
 
                 if interactive_login and not self._headless:
                     LOGGER.info(
