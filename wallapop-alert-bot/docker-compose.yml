@@ -1,0 +1,10 @@
+services:
+  wallapop-alert-bot:
+    build: .
+    container_name: wallapop-alert-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./.wallapop_profile:/app/.wallapop_profile
+      - ./anuncios_vistos.json:/app/anuncios_vistos.json
