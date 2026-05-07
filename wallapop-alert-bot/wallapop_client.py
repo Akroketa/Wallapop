@@ -50,8 +50,8 @@ class WallapopClient:
             "Origin": "https://es.wallapop.com",
             "Referer": "https://es.wallapop.com/",
             "authorization": f"Bearer {token}",
-            "x-appversion": "79316",
-            "x-deviceid": "wallapop-alert-bot",
+            "x-appversion": "820220",
+            "x-deviceid": "1041ded6-9ea5-491a-a743-889336bfa893",
             "x-deviceos": "0",
         }
 
@@ -61,8 +61,43 @@ class WallapopClient:
         response.raise_for_status()
 
         payload = response.json()
-        items = payload.get("data", {}).get("section", {}).get("payload", {}).get("items", [])
-        if not isinstance(items, list):
-            LOGGER.warning("Formato inesperado en respuesta de Wallapop")
-            return []
-        return items
+
+        candidate_paths: list[tuple[str, tuple[str, ...]]] = [
+            ("data.section.items", ("data", "section", "items")),
+            ("data.section.payload.items", ("data", "section", "payload", "items")),
+            ("data.section.data.items", ("data", "section", "data", "items")),
+            ("data.items", ("data", "items")),
+            ("items", ("items",)),
+        ]
+
+        def _resolve_path(data: Any, keys: tuple[str, ...]) -> Any:
+            current = data
+            for key in keys:
+                if not isinstance(current, dict):
+                    return None
+                current = current.get(key)
+            return current
+
+        for path_label, path_keys in candidate_paths:
+            items = _resolve_path(payload, path_keys)
+            if isinstance(items, list):
+                LOGGER.info(
+                    "Wallapop search status=%s items=%s path=%s",
+                    response.status_code,
+                    len(items),
+                    path_label,
+                )
+                return items
+
+        root_keys = list(payload.keys()) if isinstance(payload, dict) else []
+        data_keys: list[str] = []
+        if isinstance(payload, dict) and isinstance(payload.get("data"), dict):
+            data_keys = list(payload["data"].keys())
+
+        LOGGER.info(
+            "Wallapop search status=%s items=0 path=none root_keys=%s data_keys=%s",
+            response.status_code,
+            root_keys,
+            data_keys,
+        )
+        return []
